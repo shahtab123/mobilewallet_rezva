@@ -1,0 +1,20 @@
+/** Shared visual tokens for the wallet UI (dark panels over photo backgrounds). */
+export const colors = {
+  ink: '#071018',
+  inkSoft: '#0d1b26',
+  panel: 'rgba(8, 18, 28, 0.88)',
+  panelBorder: 'rgba(255, 255, 255, 0.12)',
+  overlay: 'rgba(4, 10, 16, 0.72)',
+  text: '#f4f7fb',
+  textMuted: 'rgba(244, 247, 251, 0.68)',
+  textDim: 'rgba(244, 247, 251, 0.45)',
+  accent: '#3ecf8e',
+  accentDeep: '#1f9f68',
+  accentSoft: 'rgba(62, 207, 142, 0.16)',
+  danger: '#f07178',
+  warn: '#e8b86d',
+  tabBar: '#050d14',
+  tabBorder: 'rgba(255,255,255,0.08)',
+  input: 'rgba(255,255,255,0.06)',
+  inputBorder: 'rgba(255,255,255,0.14)',
+};
