@@ -3,9 +3,24 @@ const ETH_ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/;
 const EXTERNAL_CRYPTO_NAME_PATTERN =
   /\.(eth|sol|crypto|bitcoin|btc|base\.eth|arb)$/i;
 const EXPLICIT_TYPE_PATTERN = /^([a-z][a-z0-9_]{1,32}):(.+)$/i;
-const CUSTOM_PATTERN = /^[a-z0-9._-]+$/;
+const PROVIDER_NAME_PATTERN =
+  /^[a-z0-9][a-z0-9_-]{0,62}\.[a-z][a-z0-9-]{1,62}$/i;
 
 const URL_LIKE_TYPES = new Set(['http', 'https', 'ftp', 'ws', 'wss', 'file']);
+const CUSTOM_RESERVED = new Set([
+  'paypal',
+  'bkash',
+  'admin',
+  'support',
+  'system',
+  'api',
+  'official',
+  'phone',
+  'email',
+  'merchant_id',
+  'bangla_qr',
+  'custom',
+]);
 
 export function isBlockchainAddress(value: string): boolean {
   return ETH_ADDRESS_PATTERN.test(value.trim());
@@ -55,43 +70,56 @@ function looksLikeBanglaQr(value: string): boolean {
   if (!trimmed || trimmed.length > REZVA_IDENTIFIER_MAX_CHARS) return false;
 
   // Full Bangla / EMV QR text — resolve the exact string as bangla_qr.
+  // Do not rewrite into a merchant ID or chain address.
   if (EMV_PAYLOAD_PREFIX.test(trimmed) && trimmed.length >= 16) {
     return true;
   }
 
+  // Legacy short numeric bangla_qr values (still valid when registered as digits).
   const digits = trimmed.replace(/\D/g, '');
   return digits.length >= 8 && digits.length <= 32 && /^\d+$/.test(trimmed);
 }
 
 export { looksLikeBanglaQr, REZVA_IDENTIFIER_MAX_CHARS };
 
+function looksLikeUrl(value: string): boolean {
+  return /^(https?:\/\/|www\.)/i.test(value.trim());
+}
+
+/**
+ * Custom is free-form on the protocol (URLs, handles, shop codes).
+ * Keep only safety rejects so Cash App links are not misclassified.
+ */
 function looksLikeCustom(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  if (normalized.length < 3 || normalized.length > 64) return false;
-  if (!CUSTOM_PATTERN.test(normalized)) return false;
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (normalized.length < 1 || normalized.length > REZVA_IDENTIFIER_MAX_CHARS) {
+    return false;
+  }
+  if (CUSTOM_RESERVED.has(normalized)) return false;
   if (ETH_ADDRESS_PATTERN.test(normalized)) return false;
   if (EXTERNAL_CRYPTO_NAME_PATTERN.test(normalized)) return false;
   return true;
 }
 
 function looksLikeProviderName(value: string): boolean {
-  const trimmed = value.trim().toLowerCase();
-  if (!trimmed || trimmed.includes('@')) return false;
+  const trimmed = value.trim();
   if (EXTERNAL_CRYPTO_NAME_PATTERN.test(trimmed)) return false;
-  // name.provider — exactly one dot (e.g. shahtab.rabby)
-  const parts = trimmed.split('.');
-  if (parts.length !== 2) return false;
-  const [left, right] = parts;
-  return (
-    /^[a-z0-9][a-z0-9_-]{0,62}$/.test(left) &&
-    /^[a-z][a-z0-9-]{1,62}$/.test(right)
-  );
+  if (looksLikeUrl(trimmed)) return false;
+  return PROVIDER_NAME_PATTERN.test(trimmed);
 }
 
 export { looksLikeProviderName };
 
 function looksLikeMerchantId(value: string): boolean {
   const normalized = value.trim();
+  // Merchant IDs are short opaque codes — not URLs or cashtags.
+  if (
+    looksLikeUrl(normalized) ||
+    normalized.includes('/') ||
+    normalized.includes('$')
+  ) {
+    return false;
+  }
   return normalized.length >= 2 && normalized.length <= 64;
 }
 
@@ -107,11 +135,13 @@ export function inferIdentifierType(value: string): string | null {
   const explicit = parseExplicitIdentifier(trimmed);
   if (explicit) return explicit.type;
 
+  // EMV / Bangla QR before other heuristics — payloads are long and not addresses.
   if (looksLikeBanglaQr(trimmed)) return 'bangla_qr';
 
   if (looksLikeEmail(trimmed)) return 'email';
   if (looksLikePhone(trimmed)) return 'phone';
   if (looksLikeProviderName(trimmed)) return 'provider_name';
+  // Prefer custom before merchant_id so free-form URLs/handles resolve correctly.
   if (looksLikeCustom(trimmed)) return 'custom';
   if (looksLikeMerchantId(trimmed)) return 'merchant_id';
   return null;

@@ -40,6 +40,12 @@ npx expo start -c
 
 Open with **Expo Go** on Android (SDK must match — this project targets Expo SDK 57).
 
+In **Send → Resolver settings**, confirm the API base URL is:
+
+`https://universal-payment-api.sabrishahtab.workers.dev`
+
+(`__DEV__` defaults to `http://127.0.0.1:8787` if unset — use `rezva-keys.ts` or settings to point at production.)
+
 ## How to use
 
 1. Create / unlock wallet on the **Wallet** tab.
