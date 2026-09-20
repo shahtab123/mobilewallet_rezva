@@ -59,7 +59,16 @@ In **Send → Resolver settings**, confirm the API base URL is:
 | --- | --- |
 | `shahtab.rabby` | Provider name |
 | `test@test.com` | Email |
+| `https://cash.app/$coffeeandamike` | Custom (payment URL / handle) |
 | Bangla / EMV QR | Scan the poster or paste full `000201…` text |
+
+Cash App links and other free-form URLs must resolve as **`custom`**, not
+`merchant_id`. If you see “No mapping exists” for a registered URL, reload
+after pulling the latest `inferType` fix and confirm Resolver settings point
+at production (`__DEV__` defaults to `http://127.0.0.1:8787` if unset).
+
+**Scan QR in Expo Go** uses the in-app camera (system Google scanner exits
+Expo Go to the Expo home screen).
 
 Sample Bangla QR poster:
 

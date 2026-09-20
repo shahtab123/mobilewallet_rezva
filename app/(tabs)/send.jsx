@@ -9,8 +9,11 @@ import {
   Dimensions,
   Pressable,
   Platform,
+  AppState,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
 import { GlassCard, Button, Title, Input } from '@/components/ui';
 import { RezvaResolutionPanel } from '@/components/RezvaResolutionPanel';
@@ -25,6 +28,16 @@ import { getUsdcForChain } from '@/config/tokens';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
+/** Google/iOS system scanners leave Expo Go and land on the Expo home screen. */
+function canUseSystemBarcodeScanner() {
+  if (Platform.OS === 'web') return false;
+  if (!CameraView.isModernBarcodeScannerAvailable) return false;
+  // Expo Go / store client — keep scanning inside the app.
+  if (Constants.appOwnership === 'expo') return false;
+  if (Constants.executionEnvironment === 'storeClient') return false;
+  return true;
+}
+
 function debounce(fn, ms) {
   let timer;
   const wrapped = (...args) => {
@@ -36,6 +49,7 @@ function debounce(fn, ms) {
 }
 
 export default function SendScreen() {
+  const router = useRouter();
   const {
     wallet,
     isAuthenticated,
@@ -65,6 +79,7 @@ export default function SendScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const scannedRef = useRef(false);
   const modernScanSub = useRef(null);
+  const pendingScanRef = useRef(null);
 
   const validateAddress = (address) => /^0x[a-fA-F0-9]{40}$/.test(address);
 
@@ -297,15 +312,30 @@ export default function SendScreen() {
     );
   };
 
-  const applyScannedData = useCallback((data) => {
-    if (scannedRef.current) return;
-    scannedRef.current = true;
-    setScanOpen(false);
-    setRecipient(
-      String(data || '')
+  const applyScannedData = useCallback(
+    (data) => {
+      const value = String(data || '')
         .trim()
-        .slice(0, REZVA_IDENTIFIER_MAX_CHARS)
-    );
+        .slice(0, REZVA_IDENTIFIER_MAX_CHARS);
+      if (!value) return;
+      if (scannedRef.current) return;
+      scannedRef.current = true;
+      setScanOpen(false);
+      setRecipient(value);
+      // Stay on Send after system scanner (standalone builds).
+      try {
+        router.replace('/(tabs)/send');
+      } catch {
+        // ignore
+      }
+    },
+    [router]
+  );
+
+  const openInAppScanner = useCallback(() => {
+    scannedRef.current = false;
+    setCameraKey((k) => k + 1);
+    setScanOpen(true);
   }, []);
 
   const openScanner = async () => {
@@ -322,17 +352,15 @@ export default function SendScreen() {
 
     scannedRef.current = false;
 
-    // Prefer Android Google Code Scanner / iOS DataScanner — real system UI with preview.
-    // In-app CameraView often shows a black preview on Android while still decoding.
-    const useModern =
-      Platform.OS !== 'web' && CameraView.isModernBarcodeScannerAvailable;
-
-    if (useModern) {
+    // System Google/iOS scanners exit Expo Go to the Expo home screen.
+    // Keep scanning in-app under Expo Go so the wallet stays open.
+    if (canUseSystemBarcodeScanner()) {
       try {
         modernScanSub.current?.remove?.();
         modernScanSub.current = CameraView.onModernBarcodeScanned((event) => {
           modernScanSub.current?.remove?.();
           modernScanSub.current = null;
+          pendingScanRef.current = event?.data || null;
           applyScannedData(event?.data);
           CameraView.dismissScanner?.().catch(() => undefined);
         });
@@ -341,14 +369,25 @@ export default function SendScreen() {
       } catch (err) {
         modernScanSub.current?.remove?.();
         modernScanSub.current = null;
-        // Fall through to in-app camera.
         console.warn('launchScanner failed, using in-app camera', err);
       }
     }
 
-    setCameraKey((k) => k + 1);
-    setScanOpen(true);
+    openInAppScanner();
   };
+
+  // If a system scan completes while the app was backgrounded, re-apply on resume.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      const pending = pendingScanRef.current;
+      if (!pending) return;
+      pendingScanRef.current = null;
+      scannedRef.current = false;
+      applyScannedData(pending);
+    });
+    return () => sub.remove();
+  }, [applyScannedData]);
 
   useEffect(() => {
     return () => {
