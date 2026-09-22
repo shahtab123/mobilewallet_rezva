@@ -1,8 +1,17 @@
 # Mobile Wallet + Rezva (Expo / Android)
 
-Expo React Native wallet with **Rezva** identifier resolution for real USDC payments (Base Sepolia and other networks returned by resolve).
+Expo React Native wallet with **Rezva** identifier resolution for demo USDC payment flows (Base Sepolia and other networks returned by resolve).
 
 Official site: [https://rezva.xyz](https://rezva.xyz)
+
+## Attribution & disclaimer
+
+This project is a **modified fork** of the open-source [ReactNativeWallet](https://github.com/makevoid/ReactNativeWallet) by [makevoid](https://github.com/makevoid). Full credit for the original wallet belongs to the original author and contributors.
+
+- **Original repository:** [https://github.com/makevoid/ReactNativeWallet](https://github.com/makevoid/ReactNativeWallet)
+- **This modified repository:** [https://github.com/shahtab123/mobilewallet_rezva](https://github.com/shahtab123/mobilewallet_rezva)
+
+**Do not use this app for real transfers of crypto.** It is a demo / integration sample for Rezva identifier resolution (testnets and test identifiers). It is not an official product of the original wallet authors or Rezva, may be incomplete or unsafe, and you use it entirely at your own risk. For everyday use, prefer a well-maintained wallet from a trusted source.
 
 ## Install
 
@@ -105,3 +114,4 @@ curl https://universal-payment-api.sabrishahtab.workers.dev/health
 - Use `address`, `token_contract`, and `network_identifier` from the resolve response only.
 - More detail: [REZVA.md](./REZVA.md)
 - Website: [https://rezva.xyz](https://rezva.xyz)
+- See [Attribution & disclaimer](#attribution--disclaimer) above — not for real crypto transfers.
